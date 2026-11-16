@@ -1,0 +1,193 @@
+---
+title: "Aves de fragmentos de Bosque seco en la región del Caribe Colombiano"
+author: "Daihanna Castro Reyes. C.C 1043964662"
+date: "14/Octubre/2026"
+format:
+  html:
+    toc: true
+    code-fold: true
+    self-contained: true
+editor: visual
+bibliography: references.bib
+---
+
+## Introducción
+
+El bosque seco tropical es uno de los ecosistemas más amenazados de Colombia por la transformación del territorio, esta amenaza está causada principalmente por la ganadería, actividades agropecuarias, urbanización y agricultura. En la región del Caribe colombiano, este ecosistema presenta periodos marcados por sequía y disponibilidad variable de los recursos, estas condiciones influyen en la distribución y composición de las comunidades de aves.
+
+Las aves participan en procesos ecológicos como dispersión de semillas, polinización y control de algunas poblaciones de insectos, por esto es importante estudiar este grupo en este tipo de ecosistemas; además su presencia y abundancia puede darnos información de las condiciones y características de los diferentes fragmentos de bosque [@spinelli2026].
+
+Para este proyecto se utilizará un conjunto de datos de aves de fragmentos de bosque seco de la región del Caribe colombiano, publicado por el Instituto de Recursos Biológicos Alexander von Humboldt; estos registros corresponden a aves capturadas y detectadas mediante censos en tres localidades: Hibácharo (Atlántico); San Juan Nepomuceno (Bolívar); y Hatonuevo (Guajira). Hay una totalidad de 1.386 registros y se desarrolló con el fin de conocer la riqueza y diversidad de este grupo, para posteriormente contribuir en el monitoreo de procesos de restauración del bosque seco en estas localidades [@juanluisparra2015].
+
+Lo mencionado anteriormente nos hace preguntarnos, ¿cómo varía la riqueza de especies y la frecuencia de registros de aves entre las diferentes localidades de bosque seco del Caribe colombiano?
+
+## Métodos
+
+Los datos utilizados en este análisis corresponden a registros de ocurrencia de aves del Caribe colombiano obtenidos a partir de una descarga de GBIF realizada el 22 de septiembre de 2026, publicados por el Instituto de Recursos Biológicos Alexander von Humboldt; estos registros corresponden a aves capturadas y detectadas mediante censos en tres localidades: Hibácharo (Atlántico); San Juan Nepomuceno (Bolívar); y Hatonuevo (Guajira). El conjunto de datos fue importado en R mediante la función `read_tsv()` del paquete `tidyverse`. El archivo original está conformado por 1.386 registros y 46 variables.
+
+El archivo fue revisado para identificar valores faltantes y posibles problemas de lectura, posteriormente se calculó el número total de registros, el número de especies registradas, la frecuencia de registros por localidad, la riqueza de especies por localidad y la frecuencia de registros por orden taxonómico y especies; la riqueza de las especies se estimó como el número de especies distintas registradas en cada localidad, esto nos permite realizar una comparación descriptiva de la diversidad taxonómica en los diferentes sitios muestreados, esto se hizo ya que los registros no presentan necesariamente un esfuerzo de muestreo homogéneo entre localidades, estos registros se interpretan como patrones de registros y riqueza observada, y no como estimaciones absolutas de abundancia poblacional. Su análisis fue realizado mediante estadística descriptiva y visualizado mediante gráficas utilizando principalmente `dplyr`, `ggplot2` y `knitr`.
+
+```{r}
+#| code-fold: true
+
+library(tidyverse)
+
+datos <- read_tsv("occurrence.txt")
+
+datos_eda <- datos |>
+  select(
+    scientificName,
+    order,
+    stateProvince,
+    locality,
+    decimalLatitude,
+    decimalLongitude
+  )
+```
+
+```{r}
+#| code-fold: true
+
+glimpse(datos_eda)
+
+dim(datos_eda)
+
+colSums(is.na(datos_eda))
+```
+
+```{r}
+#| label: resumen-general
+#| code-fold: true
+
+datos_eda |>
+  summarise(
+    n_registros = n(),
+    n_especies = n_distinct(scientificName),
+    n_localidades = n_distinct(locality),
+    n_ordenes = n_distinct(order)
+  )
+```
+
+## Resultados
+
+El conjunto de datos analizado estuvo conformado por 1.386 registros correspondientes a 136 especies de aves distribuidas en 34 localidades del Caribe colombiano. Los registros pertenecieron a 17 órdenes taxonómicos. No se encontraron valores faltantes en las seis variables seleccionadas para el análisis.
+
+### Figura 1 — Registros por localidad
+
+```{r}
+#| label: registros-localidad
+#| code-fold: true
+
+registros_localidad <- datos_eda |>
+  count(locality, sort = TRUE)
+```
+
+```{r}
+#| label: fig-registros-localidad
+#| fig-cap: "Número de registros de aves por localidad."
+#| code-fold: true
+
+ggplot(
+  registros_localidad,
+  aes(
+    x = reorder(locality, n),
+    y = n,
+    fill = "Registros"
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Número de registros de aves por localidad",
+    x = "Localidad",
+    y = "Número de registros",
+    fill = "Variable"
+  ) +
+  theme_minimal()
+```
+
+### Figura 2 — Riqueza por localidad
+
+```{r}
+#| label: riqueza-localidad
+#| code-fold: true
+
+riqueza_localidad <- datos_eda |>
+  group_by(locality) |>
+  summarise(
+    n_registros = n(),
+    n_especies = n_distinct(scientificName)
+  ) |>
+  arrange(desc(n_especies))
+```
+
+```{r}
+#| label: fig-riqueza-localidad
+#| fig-cap: "Riqueza observada de especies de aves por localidad."
+#| code-fold: true
+
+ggplot(
+  riqueza_localidad,
+  aes(
+    x = reorder(locality, n_especies),
+    y = n_especies,
+    fill = "Riqueza de especies"
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Riqueza observada de especies de aves por localidad",
+    x = "Localidad",
+    y = "Número de especies",
+    fill = "Variable"
+  ) +
+  theme_minimal()
+```
+
+### Tabla 1 — Registros y riqueza por departamento
+
+```{r}
+#| label: tabla-departamentos
+#| tbl-cap: "Número de registros, especies y localidades por departamento."
+#| code-fold: true
+
+riqueza_departamento <- datos_eda |>
+  group_by(stateProvince) |>
+  summarise(
+    n_registros = n(),
+    n_especies = n_distinct(scientificName),
+    n_localidades = n_distinct(locality)
+  ) |>
+  arrange(desc(n_especies))
+
+knitr::kable(
+  riqueza_departamento,
+  caption = "Número de registros, especies y localidades por departamento."
+)
+```
+
+### Figura 3 — Riqueza por departamento
+
+```{r}
+#| label: fig-riqueza-departamento
+#| fig-cap: "Riqueza observada de aves por departamento."
+#| code-fold: true
+
+ggplot(
+  riqueza_departamento,
+  aes(
+    x = reorder(stateProvince, n_especies),
+    y = n_especies,
+    fill = "Riqueza de especies"
+  )
+) +
+  geom_col() +
+  labs(
+    title = "Riqueza observada de aves por departamento",
+    x = "Departamento",
+    y = "Número de especies",
+    fill = "Variable"
+  ) +
+  theme_minimal()
+```
